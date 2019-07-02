@@ -1,0 +1,111 @@
+{% if  self.assessment_type == "ecg_competition" %}
+<div class="">
+    {% if self.has_staff_role %}
+        <button class="staff-download-report">Download Report</button>
+    {% endif %}
+</div>
+{% endif %}
+<div class="assessmentxblock_block vert">
+{%  if self.display_feedback == 1  %}
+{%  if self.assessment_type != "ecg_competition"  %}
+<div class="feedback-block {% if correct_percent > low %} success {% else %} fail {% endif %}">
+    <div class="feedback-block-inner">
+        <h2>
+            {% if  self.assessment_type == "cme_test" %}
+                CME-Test Ergebnis
+            {% else %}
+                {% if  self.assessment_type == "knowledge_acquisition" %}
+                    Übung -
+                {% else %}
+                    Training
+                {% endif %}
+                 Feedback
+            {% endif %}
+        </h2>
+        <div class="problems-count-wrapper clearfix">
+            <div class="clearfix">
+                <span>Richtig:</span>
+                <span class="problems-passed">{{total_correct}}</span>
+                
+            </div>
+            <div class="clearfix">
+                <span>Falsch:</span>
+                <span class="problems-failed">{{total_incorrect}}</span>
+            </div>
+        </div>
+        <div class="score-wrapper clearfix">
+            <div class="correcr-range" style="width: {{correct_percent}}%;">
+                <span>{{correct_percent}}</span>
+            </div>
+            {% if self.assessment_type == "training" %}
+            <div class="passing-line" style="width: {{low}}%;">
+                <span class="success-line-label">Ausreichend</span>
+                <span class="success-line-value">{{low}}%</span>
+            </div>
+            {% endif %}
+            <div class="success-line" style="width: {{high}}%;">
+                <span class="success-line-label">
+                    {% if self.assessment_type == "cme_test" %}
+                        Bestanden
+                    {% else %}
+                        Hervorragend
+                    {% endif %}
+                </span>
+                <span class="success-line-value">{{high}}%</span>
+            </div>
+        </div>
+        <div class="clearfix feedback-bottom-block">
+            <div class="clearfix message">{{summary}}</div>
+            <div class="clearfix buttons-wrapper">
+                
+                {% if self.assessment_type != "knowledge_acquisition" and self.assessment_type != "cme_test" %}
+                    {% if  self.module_link|length > 1 %}
+                        <a class="video-link" href="{{ self.module_link }}" target="_blank">Video ansehen</a>  
+                    {% else %}
+                        <a class="video-link" target="_blank" disabled="disabled">Video ansehen</a>
+                    {% endif %}
+                {% endif %}
+
+                {% comment %} <a class="view-progress" href="/courses/{{ self.course_id }}/progress">View Progress</a> {% endcomment %}
+
+                {% if self.assessment_type == "cme_test" %}
+                    <button id="reattempt" class="reattempt-problems">Test wiederholen</button>
+                {% else %}
+                    <button id="reattempt" class="reattempt-problems">{% if not self.assessment_type == "knowledge_acquisition" %}Training wiederholen {% else %}Übung wiederholen{% endif %}</button>
+                {% endif %}
+                
+                <button class="sequence-nav-button button-next next-unit">
+                    <span class="sequence-nav-button-label">
+                        {% if self.assessment_type == "cme_test" %}
+                            Zu der Umfrage
+                        {% else %}
+                            Zum nächsten Modul
+                        {% endif %}
+                    </span>
+                    <span class="icon fa fa-chevron-next" aria-hidden="true"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="feedback-block">
+    <div class="feedback-block-inner">
+        <div class="clearfix feedback-bottom-block">
+            <h2>{{feedback_header_msg}}</h2>
+            <div class="clearfix feedback-bottom-block">
+                <div class="clearfix message">{{summary}}</div>
+                <div class="clearfix buttons-wrapper">
+                    <a href="https://ekg.training.close2real.de/account/kursuebersicht" class="video-link  btn-highlight">Zur Kursübersicht</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endif %}
+
+{% endif %}
+    </div>
+</div>
+

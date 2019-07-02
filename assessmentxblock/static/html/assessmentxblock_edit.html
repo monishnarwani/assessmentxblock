@@ -1,0 +1,266 @@
+<div class="assessmentxblock_block">
+  <div class="wrapper-comp-settings is-active editor-with-buttons assessment-edit-wrapper" id="assessment-settings-tab">
+    <div class="validation_alert covered">
+      <i class="alert_icon"></i>
+      <div class="alert_header">
+        <h2 class="alert_title"> Assessment Block</h2>
+        <p class="alert_message">Please correct the outlined fields.</p>
+      </div>
+    </div>
+    <!--{% comment %} <ul class="errorr-messages">
+      <li>Error Comes Here</li> 
+      </ul>   {% endcomment %} -->
+    
+    <div class="xblock-inputs editor_content_wrapper">
+
+      <ul class="list-input settings-list">
+
+        <li class="field comp-setting-entry metadata-entry">
+          <div class="wrapper-comp-setting">
+            <label class="label setting-label" for="edit_display_name">{{ self.fields.display_name.display_name }}</label>
+            <input class="input setting-input edit-display-name reset-me" id="edit_display_name" value="{{self.display_name}}" type="text" data-default-value="{{self.display_name}}">
+            <button class="action setting-clear active clear_display_name inactive reset-btn" type="button" name="setting-clear" value="Clear" data-tooltip="Clear">
+            <span class="icon fa fa-undo" aria-hidden="true"></span><span class="sr">"Clear Value"</span>
+            </button>
+          </div>
+          <span class="assessment_error hide" id="error_display_name"></span>
+          <span class="tip setting-help">{{ self.fields.display_name.help }}</span>
+        </li>
+
+        <li class="field comp-setting-entry metadata-entry">
+            <div class="wrapper-comp-setting">
+              <label class="label setting-label" for="edit_assessment_type">{{ self.fields.assessment_type.display_name }}</label>
+              <select id="edit_assessment_type" data-default-value="{% if self.assessment_type %}{{self.assessment_type}}{% else %}knowledge_acquisition{% endif %}" class="reset-me">
+                {% for option in self.fields.assessment_type.values %}
+                  {% if option.value == self.assessment_type %}
+                  <option value="{{option.value}}" selected >{{option.display_name}}</option>
+                  {% else %}
+                  <option value="{{option.value}}">{{option.display_name}}</option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+              <button class="action setting-clear active clear_library inactive reset-btn" type="button" name="setting-clear" value="Clear" data-tooltip="Clear" id="clear_assessment_type">
+              <span class="icon fa fa-undo" aria-hidden="true"></span><span class="sr">"Clear Value"</span>
+              </button>
+            </div>
+            <span class="assessment_error hide" id="error_library">Library is mandatory value and should have valid library key.</span>
+            <span class="assessment_error hide" id="error_empty_library">Library is empty.</span>
+            <span class="tip setting-help">{{ self.fields.assessment_type.help }}</span>
+          </li>
+
+        <li class="field comp-setting-entry metadata-entry">
+          <div class="wrapper-comp-setting">
+            <label class="label setting-label" for="edit_library_options">{{ self.fields.source_library_id.display_name }}</label>
+            <select id="edit_library_options" data-default-value="{% if self.source_library_id %} {{self.source_library_id}} {% endif %}" class="reset-me">
+              {% for lib in library_list %}
+                {% if lib.value == self.source_library_id %}
+                <option value="{{lib.value}}" selected >{{lib.display_name}}</option>
+                {% else %}
+                <option value="{{lib.value}}">{{lib.display_name}}</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+            <button class="action setting-clear active clear_library inactive reset-btn" type="button" name="setting-clear" value="Clear" data-tooltip="Clear" id="clear_library">
+            <span class="icon fa fa-undo" aria-hidden="true"></span><span class="sr">"Clear Value"</span>
+            </button>
+          </div>
+          <span class="assessment_error hide" id="error_library">Library is mandatory value and should have valid library key.</span>
+          <span class="assessment_error hide" id="error_empty_library">Library is empty.</span>
+          <span class="tip setting-help">{{ self.fields.source_library_id.help }}</span>
+        </li>
+
+        <li class="field comp-setting-entry metadata-entry lib-problems draggable ">
+          <div class="wrapper-comp-setting">
+            <label class="label setting-label" for="edit_problems">{{ self.fields.problems.display_name }}</label>
+            <ul class="lib-problems-draggable123" data-default-value="{{problem_list_encoded}}">
+              {% for problem in problem_list %}
+              <li data-problem-id="{{problem.value}}" class="{% if problem.ordered %}ordered{% else %}unordered{% endif %}"> {{problem.display_name}} </li>
+              {% endfor %}
+            </ul>
+            <button class="action setting-clear active clear_problems inactive" type="button" name="setting-clear" value="Clear" data-tooltip="Clear">
+            <span class="icon fa fa-undo" aria-hidden="true"></span><span class="sr">"Clear Value"</span>
+            </button>
+          </div>
+          <span class="assessment_error hide" id="error_problems">Problems are mandatory and should match the list of the problems in the library.</span>
+          <span class="tip setting-help">{{ self.fields.problems.help }}</span>
+        </li>
+
+        <li class="field comp-setting-entry metadata-entry">
+          <div class="wrapper-comp-setting">
+            <label class="label setting-label" for="edit_display_feedback">{{ self.fields.display_feedback.display_name }}</label>
+            <select id="edit_display_feedback" data-default-value="{{self.display_feedback}}" class="reset-me">
+            <option {% if self.display_feedback == 1 %} selected {% endif %}  value="1">Yes</option>
+            <option {% if self.display_feedback == 0 %} selected {% endif %}  value="0">No</option>
+            </select>
+            <button class="action setting-clear active clear_display_feedback inactive reset-btn" type="button" name="setting-clear" value="Clear" data-tooltip="Clear">
+            <span class="icon fa fa-undo" aria-hidden="true"></span><span class="sr">"Clear Value"</span>
+            </button>
+          </div>
+          <span class="assessment_error hide" id="error_display_feeback">Feedback can be either Yes(1) or No(0)</span> 
+          <span class="tip setting-help">{{ self.fields.display_feedback.help }}</span>
+        </li>
+
+        <div class="feedback-parameters {% if self.display_feedback %} show {% endif %}">
+
+          <li class="field comp-setting-entry metadata-entry def-repeat-wrapper">
+            <div class="wrapper-comp-setting">
+              <label class="label setting-label" for="edit_definitively_repeat">{{ self.fields.definitively_repeat.display_name }}</label>
+              <input class="input setting-input setting-input-number reset-me" type="number" id="edit_definitively_repeat" value={{self.definitively_repeat}} data-default-value="{{self.definitively_repeat}}" min="0">
+              <button class="action setting-clear active clear_definitively_repeat inactive reset-btn" type="button" name="setting-clear" value="Clear" data-tooltip="Clear">
+              <span class="icon fa fa-undo" aria-hidden="true"></span><span class="sr">"Clear Value"</span>
+              </button>
+            </div>
+            <span class="assessment_error hide" id="error_definitively_repeat">Definitively Repeat should be less than Continue with next</span> 
+            <span class="tip setting-help">{{ self.fields.definitively_repeat.help }}</span>
+          </li>
+
+          <li class="field comp-setting-entry metadata-entry cont-next-wrapper">
+            <div class="wrapper-comp-setting">
+              <label class="label setting-label" for="edit_continue_with_next">{{ self.fields.continue_with_next.display_name }}</label>
+              <input class="input setting-input setting-input-number reset-me" type="number" id="edit_continue_with_next" value={{self.continue_with_next}} data-default-value={{self.fields.continue_with_next.default}}  min="0">
+              <button class="action setting-clear active clear_continue_with_next inactive reset-btn" type="button" name="setting-clear" value="Clear" data-tooltip="Clear">
+              <span class="icon fa fa-undo" aria-hidden="true"></span><span class="sr">"Clear Value"</span>
+              </button>
+            </div>
+            <span class="assessment_error hide" id="error_continue_with_next">Continue with next should be greater than Definitively Repeat</span>
+            <span class="tip setting-help">{{ self.fields.continue_with_next.help }}</span>
+          </li>
+
+          <li class="field comp-setting-entry metadata-entry module-link-wrapper">
+            <div class="wrapper-comp-setting">
+              <label class="label setting-label" for="edit_module_link">{{ self.fields.module_link.display_name }}</label>
+              <input class="input setting-input reset-me" id="edit_module_link" value="{{self.module_link}}" type="text" data-default-value="{{self.module_link}}" >
+              <button class="action setting-clear active clear_module_link inactive reset-btn" type="button" name="setting-clear" value="Clear" data-tooltip="Clear">
+              <span class="icon fa fa-undo" aria-hidden="true"></span><span class="sr">"Clear Value"</span>
+              </button>
+            </div>
+            <span class="assessment_error hide" id="error_module_link"></span>
+            <span class="tip setting-help">{{ self.fields.module_link.help }}</span>
+          </li>
+
+          <li class="field comp-setting-entry metadata-entry def-repeat-msg-wrapper">
+            <div class="wrapper-comp-setting">
+              <label class="label setting-label" for="edit_module_link">{{ self.fields.def_repeat_msg.display_name }}</label>
+              <textarea class="input setting-input reset-me" id="edit_def_repeat_msg" data-default-value="{{self.def_repeat_msg}}" rows="5" cols="60">{{self.def_repeat_msg}}</textarea>
+              <button class="action setting-clear active clear_module_link inactive reset-btn" type="button" name="setting-clear" value="Clear" data-tooltip="Clear">
+              <span class="icon fa fa-undo" aria-hidden="true"></span><span class="sr">"Clear Value"</span>
+              </button>
+            </div>
+            <!-- <span class="assessment_error hide" id="error_module_link"></span>
+            <span class="tip setting-help">{{ self.fields.module_link.help }}</span> -->
+          </li>
+
+          <li class="field comp-setting-entry metadata-entry can-repeat-msg-wrapper">
+            <div class="wrapper-comp-setting">
+              <label class="label setting-label" for="edit_module_link">{{ self.fields.can_repeat_msg.display_name }}</label>
+              <textarea class="input setting-input reset-me" id="edit_can_repeat_msg" data-default-value="{{self.can_repeat_msg}}" rows="5" cols="60">{{self.can_repeat_msg}}</textarea>
+              <button class="action setting-clear active clear_module_link inactive reset-btn" type="button" name="setting-clear" value="Clear" data-tooltip="Clear">
+              <span class="icon fa fa-undo" aria-hidden="true"></span><span class="sr">"Clear Value"</span>
+              </button>
+            </div>
+            <!-- <span class="assessment_error hide" id="error_module_link"></span>
+            <span class="tip setting-help">{{ self.fields.module_link.help }}</span> -->
+          </li>
+
+          <li class="field comp-setting-entry metadata-entry next-unit-msg-wrapper">
+            <div class="wrapper-comp-setting">
+              <label class="label setting-label" for="edit_module_link">{{ self.fields.next_unit_msg.display_name }}</label>
+              <textarea class="input setting-input  reset-me" id="edit_next_unit_msg" data-default-value="{{self.next_unit_msg}}" rows="5" cols="60">{{self.next_unit_msg}}</textarea>
+              <button class="action setting-clear active clear_module_link inactive  reset-btn" type="button" name="setting-clear" value="Clear" data-tooltip="Clear">
+              <span class="icon fa fa-undo" aria-hidden="true"></span><span class="sr">"Clear Value"</span>
+              </button>
+            </div>
+            <!-- <span class="assessment_error hide" id="error_module_link"></span>
+            <span class="tip setting-help">{{ self.fields.next_unit_msg.help }}</span> -->
+          </li>
+
+          <!-- start  - CME Test -->
+
+          <li class="field comp-setting-entry metadata-entry reset_delay-wrapper">
+            <div class="wrapper-comp-setting">
+              <label class="label setting-label" for="reset_delay">{{ self.fields.reset_delay.display_name }}</label>
+              <input class="input setting-input setting-input-number reset-me" type="number" id="edit_reset_delay" value={{self.reset_delay}} data-default-value="{{self.reset_delay}}" min="0">
+              <button class="action setting-clear active reset_delay inactive reset-btn" type="button" name="setting-clear" value="Clear" data-tooltip="Clear">
+              <span class="icon fa fa-undo" aria-hidden="true"></span><span class="sr">"Clear Value"</span>
+              </button>
+            </div>
+            <!-- <span class="assessment_error hide" id="error_timer">Timer can not be less than 1 minutes</span>  -->
+            <span class="tip setting-help">{{ self.fields.reset_delay.help }}</span>
+          </li>
+
+
+          <!-- start Hariom - ECG Competition changes -->
+
+          <li class="field comp-setting-entry metadata-entry timer-wrapper">
+            <div class="wrapper-comp-setting">
+              <label class="label setting-label" for="edit_timer">{{ self.fields.timer.display_name }}</label>
+              <input class="input setting-input setting-input-number reset-me" type="number" id="edit_timer" value={{self.timer}} data-default-value="{{self.timer}}" min="0">
+              <button class="action setting-clear active clear_timer inactive reset-btn" type="button" name="setting-clear" value="Clear" data-tooltip="Clear">
+              <span class="icon fa fa-undo" aria-hidden="true"></span><span class="sr">"Clear Value"</span>
+              </button>
+            </div>
+            <!-- <span class="assessment_error hide" id="error_timer">Timer can not be less than 1 minutes</span>  -->
+            <span class="tip setting-help">{{ self.fields.timer.help }}</span>
+          </li>
+
+          <li class="field comp-setting-entry metadata-entry feedback-header-msg-wrapper">
+            <div class="wrapper-comp-setting">
+              <label class="label setting-label" for="edit_feedback_header_msg">{{ self.fields.feedback_header_msg.display_name }}</label>
+              <textarea class="input setting-input reset-me" id="edit_feedback_header_msg" data-default-value="{{self.feedback_header_msg}}" rows="5" cols="60">{{self.feedback_header_msg}}</textarea>
+              <button class="action setting-clear active clear_feedback_header_msg inactive reset-btn" type="button" name="setting-clear" value="Clear" data-tooltip="Clear">
+              <span class="icon fa fa-undo" aria-hidden="true"></span><span class="sr">"Clear Value"</span>
+              </button>
+            </div>
+            <!-- <span class="assessment_error hide" id="error_module_link"></span> -->
+            <span class="tip setting-help">{{ self.fields.feedback_header_msg.help }}</span>
+          </li>
+
+          <li class="field comp-setting-entry metadata-entry feedback-text-msg-wrapper">
+            <div class="wrapper-comp-setting">
+              <label class="label setting-label" for="edit_feedback_text_msg">{{ self.fields.feedback_text_msg.display_name }}</label>
+              <textarea class="input setting-input reset-me" id="edit_feedback_text_msg" data-default-value="{{self.feedback_text_msg}}" rows="5" cols="60">{{self.feedback_text_msg}}</textarea>
+              <button class="action setting-clear active clear_feedback_text_msg inactive reset-btn" type="button" name="setting-clear" value="Clear" data-tooltip="Clear">
+              <span class="icon fa fa-undo" aria-hidden="true"></span><span class="sr">"Clear Value"</span>
+              </button>
+            </div>
+            <!-- <span class="assessment_error hide" id="error_module_link"></span> -->
+            <span class="tip setting-help">{{ self.fields.feedback_text_msg.help }}</span>
+          </li>
+
+          <li class="field comp-setting-entry metadata-entry timeout-feedback-text-msg-wrapper">
+            <div class="wrapper-comp-setting">
+              <label class="label setting-label" for="edit_timeout_feedback_text_msg">{{ self.fields.timeout_feedback_text_msg.display_name }}</label>
+              <textarea class="input setting-input reset-me" id="edit_timeout_feedback_text_msg" data-default-value="{{self.timeout_feedback_text_msg}}" rows="5" cols="60">{{self.timeout_feedback_text_msg}}</textarea>
+              <button class="action setting-clear active clear_timeout_feedback_text_msg inactive reset-btn" type="button" name="setting-clear" value="Clear" data-tooltip="Clear">
+              <span class="icon fa fa-undo" aria-hidden="true"></span><span class="sr">"Clear Value"</span>
+              </button>
+            </div>
+            <!-- <span class="assessment_error hide" id="error_module_link"></span> -->
+            <span class="tip setting-help">{{ self.fields.timeout_feedback_text_msg.help }}</span>
+          </li>
+
+          <!-- end Hariom - ECG Competition changes -->
+
+        </div>
+
+        <li class="field comp-setting-entry metadata-entry">
+          <div class="wrapper-comp-setting-text">
+            <label class="label setting-label">Component Location ID</label>
+            <span class="setting-text">{{ self.location }}</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+    <div class="xblock-actions">
+      <ul class="xblock-editor-error-message"></ul>
+      <ul>
+        <li class="action-item">
+          <a href="#" id="problems-submit-options" class="button action-primary save-button">Save</a>
+        </li>
+        <li class="action-item">
+          <a href="#" class="button cancel-button" id="cancel_button">Cancel</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
