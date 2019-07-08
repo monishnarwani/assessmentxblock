@@ -1,4 +1,4 @@
-{% if  self.assessment_type == "ecg_competition" %}
+{% if  self.assessment_type == "ecg_competition" or  self.assessment_type == "cme_test" %}
 <div class="">
     {% if self.has_staff_role %}
         <button class="staff-download-report">Download Report</button>
@@ -35,7 +35,8 @@
         </div>
         <div class="score-wrapper clearfix">
             <div class="correcr-range" style="width: {{correct_percent}}%;">
-                <span>{{correct_percent}}</span>
+                <span class="correcr-range-lable">Ihre Performance</span>
+                <span class="correct-percent">{{correct_percent}}</span>
             </div>
             {% if self.assessment_type == "training" %}
             <div class="passing-line" style="width: {{low}}%;">
@@ -60,7 +61,7 @@
                 
                 {% if self.assessment_type != "knowledge_acquisition" and self.assessment_type != "cme_test" %}
                     {% if  self.module_link|length > 1 %}
-                        <a class="video-link" href="{{ self.module_link }}" target="_blank">Video ansehen</a>  
+                        <a class="video-link" href="{{ modulelink }}" target="_blank">Video ansehen</a>  
                     {% else %}
                         <a class="video-link" target="_blank" disabled="disabled">Video ansehen</a>
                     {% endif %}
@@ -74,7 +75,7 @@
                     <button id="reattempt" class="reattempt-problems">{% if not self.assessment_type == "knowledge_acquisition" %}Training wiederholen {% else %}Übung wiederholen{% endif %}</button>
                 {% endif %}
                 
-                <button class="sequence-nav-button button-next next-unit">
+                <button class="sequence-nav-button next-unit">
                     <span class="sequence-nav-button-label">
                         {% if self.assessment_type == "cme_test" %}
                             Zu der Umfrage

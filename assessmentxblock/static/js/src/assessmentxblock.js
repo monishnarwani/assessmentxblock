@@ -1,21 +1,68 @@
+// $.when(
+//     $.getScript("/static/ekgtraining/js/ecg_toolbar.js"),
+//     $.Deferred(function (deferred) {
+//         $(deferred.resolve);
+//     })
+// ).done(function () {
+//     //place your code here, the scripts are all loaded
+//     console.log('ecg_toolbar loaded');
+// });
+
+// above part does not allow debugging in browser to enable debugging use below script and comment above
+
+// // Replace the normal jQuery getScript function with one that supports
+// // debugging and which references the script files as external resources
+// // rather than inline.
+// jQuery.extend({
+//    getScript: function(url, callback) {
+//       var head = document.getElementsByTagName("head")[0];
+//       var script = document.createElement("script");
+//       script.src = url;
+
+//       // Handle Script loading
+//       {
+//          var done = false;
+
+//          // Attach handlers for all browsers
+//          script.onload = script.onreadystatechange = function(){
+//             if ( !done && (!this.readyState ||
+//                   this.readyState == "loaded" || this.readyState == "complete") ) {
+//                done = true;
+//                if (callback)
+//                   callback();
+
+//                // Handle memory leak in IE
+//                script.onload = script.onreadystatechange = null;
+//             }
+//          };
+//       }
+
+//       head.appendChild(script);
+
+//       // We handle everything using the script element injection
+//       return undefined;
+//    },
+// });
+
+// $.getScript("/static/ekgtraining/js/ecg_toolbar.js");
+
 /* Javascript for AssesmentXBlock. */
 function AssesmentXBlock(runtime, element) {
     var UpdateStatsUrl = runtime.handlerUrl(element, 'update_summary');
     var ResethandlerUrl = runtime.handlerUrl(element, 'reset_attempt');
     var GetReportUrl = runtime.handlerUrl(element, 'get_report');
-    
+
     assessmentPlayer.init(UpdateStatsUrl, GetReportUrl);
     $('#reattempt').on('click', ResetBlock);
-    if ($(".preview-specific-student-notice").length > 0)
-    {
-       $(".problem").addClass("read-only");
-       console.log("I am trying")
+    if ($(".preview-specific-student-notice").length > 0) {
+        $(".problem").addClass("read-only");
+        console.log("I am trying")
     }
-     
+
     function test123(result) {
         location.reload();
     }
-    
+
     function ResetBlock() {
         $.ajax({
             type: "POST",
@@ -47,7 +94,7 @@ var assessmentPlayer = {
     init: function (UpdateStatsUrl, GetReportUrl) {
         this.UpdateStatsUrl = UpdateStatsUrl;
         this.GetReportUrl = GetReportUrl;
-        
+
         this.addImageZoomClass();
         this.toggleImageZoomClass();
         if ($(".xblock-student_view-assessmentxblock").data("runtime-class") == "LmsRuntime") {
@@ -103,7 +150,7 @@ var assessmentPlayer = {
                 that.updateSlickDots(response);
                 that.updateStatusToProblemBlock(response);
                 that.registerNextBtnClick();
-                that.hideNextBtn(response);
+                // that.hideNextBtn(response);
                 that.checkIfAttemptedAllProb(response);
                 
                 if (that.isFirstCall) {
@@ -123,6 +170,7 @@ var assessmentPlayer = {
                     }
                 } else {
                     that.addImageZoomClass(2);
+                    that.setHeightAndEnableNext(that, $('.slick-active .problems-wrapper'));
                 }
                 // Internal show answer is called instead
                 // else {
@@ -153,7 +201,7 @@ var assessmentPlayer = {
         rangeEl.css({
             "width": response.correct_percent + "%"
         });
-        rangeEl.children('span').text(response.correct_percent + "%");
+        rangeEl.children('span.correct-percent').text(response.correct_percent + "%");
         totalEl.each(function (_index) {
             $(this).text(response.total);
         });
@@ -242,14 +290,14 @@ var assessmentPlayer = {
 
         // start Hariom : ET-325 changes
         // redirect to next unit page
-        nextUnitEl.on("click", function() {
+        nextUnitEl.on("click", function () {
             var this_unit = $(document.getElementById(response.toc_progress.block_id)).parents(".vertical");
             if (this_unit.length != 0) {
                 var next_unit = this_unit.next(".vertical");
                 if (next_unit.length != 0) {
                     var next_unit_atag = next_unit.find("a");
                     if (next_unit_atag.length != 0) {
-                        window.location.href = next_unit_atag.attr("href");
+                        window.location.href = next_unit_atag.attr("href").replace("open=1", "");
                     }
                 }
                 else {
@@ -277,10 +325,10 @@ var assessmentPlayer = {
                 if (childList[index] && childList[index]['attempt'] == true) {
                     $(this).addClass('attempted');
                     if (response.assessment_type == "knowledge_acquisition" || response.assessment_type == "training") {
-                        if (childList[index]['correct'] == true || childList[index]['correct']== false ) {
+                        if (childList[index]['correct'] == true || childList[index]['correct'] == false) {
                             if (childList[index]['correct'] == true) {
                                 $(this).addClass('correct');
-                            } else if (childList[index]['correct'] == false)  {
+                            } else if (childList[index]['correct'] == false) {
                                 $(this).addClass('wrong');
                             }
                         }
@@ -313,8 +361,8 @@ var assessmentPlayer = {
         var that = this;
         var submitBtn = $(".action button.submit ");
         $('.problems-wrapper').add(".xblock-student_view-drag-and-drop-v2").on('contentChanged', function () {
-            that.setHeightAndEnableNext(that, this);
-            setTimeout(function() {
+            that.updateStatistics();
+            setTimeout(function () {
                 $("#main").trigger("AssessmentXBlock:problemSubmited");
             }, 2000);
         });
@@ -330,7 +378,7 @@ var assessmentPlayer = {
         // $("div.slick-active").html(contents);
 
         that.isSubmitted = true;
-        that.updateStatistics();
+        
         that.enableNextSlickActiveDot();
         that.enableNextArrow();
 
@@ -371,8 +419,8 @@ var assessmentPlayer = {
         //     console.log($(".problem"));
         // });
         this.slider.slick({
-            nextArrow: '<i class="fa fa-angle-right" aria-hidden="true"></i>',
-            prevArrow: '<i class="fa fa-angle-left" aria-hidden="true"></i>',
+            nextArrow: '<acronym class="slick-arrow-right" title="Zur nächsten Frage"><i class="fa fa-angle-right" aria-hidden="true"></i></acronym>',
+            prevArrow: '<acronym class="slick-arrow-left" title="Zur vorherigen Frage"><i class="fa fa-angle-left" aria-hidden="true"></i></acronym>',
             dots: true,
             infinite: false,
             speed: 500,
@@ -391,7 +439,7 @@ var assessmentPlayer = {
         var that = this
         if (wrapper) {
 
-            wrapper.find(".slick-dots").after('<div class="feedback-label-wrapper"><button class="feedback-label">Feedback</button></div>');
+            wrapper.find(".slick-dots").after('<div class="feedback-label-wrapper"><acronym title="Zum Feedback"><button class="feedback-label">Feedback</button></acronym></div>');
 
             wrapper.find('.feedback-label-wrapper').click(function () {
                 that.slider.slick('slickGoTo', that.slider.slick("getSlick").slideCount - 1);
@@ -414,22 +462,18 @@ var assessmentPlayer = {
 
     addSlideCountInNav: function () {
         // This is only for desktop
-        // var defaultCount = 1;
-        // var countEl = `
-        //     <li class="desktop pager-count">
-        //         <span class="current-count">${defaultCount}</span> 
-        //         /
-        //         <span class="total-count">${this.responseData.total}</span>
-        //     </li>
-        // `;
-        // $('.slick-dots').append(countEl);
+        var defaultCount = 1;
+        var countEl = '<li class="desktop pager-count">';
+        countEl += '<span class="current-count">' + defaultCount + '</span>/';
+        countEl += '<span class="total-count">' + this.responseData.total + '</span></li>';
+        $('.assessment-block.slider').prepend(countEl);
 
         // This is only for mobile
         var mobCountEl = '<div class="mobile pager-count">';
         mobCountEl += '<span class="correct-count">' + this.responseData.total_correct + '</span>';
         mobCountEl += '/<span class="incorrect-count">' + this.responseData.total_incorrect + '</span>';
         mobCountEl += '/<span class="total-count">' + this.responseData.total + '</span></div>';
-        
+
 
         $('.assessment-block .slick-slider').append(mobCountEl);
 
@@ -451,11 +495,11 @@ var assessmentPlayer = {
             that.playerCount.currentCount = currentSlide + 1;
 
             if (responseData && (currentSlide == responseData.total)) {
-                // $(".pager-count .current-count").text("Feedback");
+                $(".pager-count .current-count").text(responseData.total);
                 that.enableFeedbackNav();
                 that.toggleFeedbackActiveClass(true);
             } else {
-                // $(".pager-count .current-count").text(currentSlide + 1);
+                $(".pager-count .current-count").text(currentSlide + 1);
                 if (!responseData.children_list[currentSlide].attempt) {
                     that.disableNextArrow();
                 } else {
@@ -472,7 +516,7 @@ var assessmentPlayer = {
         });
     },
 
-    updateSlickDotsWidth: function() {
+    updateSlickDotsWidth: function () {
         var fbDotWidth = 0;
         var currWidth = window.innerWidth;
         var wrapper = $(".assessment-block.slider");
@@ -480,9 +524,9 @@ var assessmentPlayer = {
         // var slickDotWidth = slickDotsEl.find("li").outerWidth(true);
         var slickDotWidth = 38;
         var dotsWrapperWidth = slickDotsEl.outerWidth(true) - (240); // 110 * 2 + 20
-        
+
         if (slickDotsEl.hasClass('dots-small')) {
-            dotsWrapperWidth += 130; 
+            dotsWrapperWidth += 130;
         }
         var totalDots = slickDotsEl.find("li").length
         // var isFeedback = wrapper.hasClass("feedback")
@@ -517,7 +561,7 @@ var assessmentPlayer = {
         that.updateSlickDotsWidth(response);
         that.addRemoveProgressbarScroll();
         $(window).resize(function () {
-            setTimeout(function() {
+            setTimeout(function () {
                 that.updateSlickDotsWidth();
             }, 500);
             that.addRemoveProgressbarScroll();
@@ -537,19 +581,25 @@ var assessmentPlayer = {
     },
 
     enableNextBtn: function (submitBtn) {
-        nextBtn = submitBtn.parent().find('.next');
         this.enableNextArrow();
+
+        /*  
+            Commented this as show & hide of next button is handled 
+            with attempted class on css 
+        */
+
+        // nextBtn = submitBtn.parent().find('.next');
         // this.toggleEl(nextBtn);
-        nextBtn.show();
-        nextBtn.removeClass("hide");
-        $(nextBtn).prop('disabled', false);
+        // nextBtn.show();
+        // nextBtn.removeClass("hide");
+        // $(nextBtn).prop('disabled', false);
     },
 
     registerNextBtnClick: function () {
         var that = this;
         // $('.action button.next').each(function (index) {
         //     console.log($(this));
-            
+
         //     $(this).on('click', function () {
         //         that.slider.slick('slickNext');
         //     });
@@ -588,11 +638,11 @@ var assessmentPlayer = {
     },
 
     enableNextArrow: function () {
-        $(".fa-angle-right.slick-arrow").removeClass('slick-disabled');
+        $(".slick-arrow.slick-arrow-right").removeClass('slick-disabled');
     },
 
     disableNextArrow: function () {
-        $(".fa-angle-right.slick-arrow").addClass('slick-disabled');
+        $(".slick-arrow.slick-arrow-right").addClass('slick-disabled');
     },
 
     enableFeedbackNav: function () {
@@ -628,7 +678,7 @@ var assessmentPlayer = {
                 }
             }
         }
-        
+
     },
 
     displayShowedAns: function (response) {
@@ -637,7 +687,7 @@ var assessmentPlayer = {
             $.each(problemsEl, function (index) {
                 var el = $(this);
                 // probType = el.find("[id*='problem-title']").text().trim();
-    
+
                 if (response.children_list[index] && response.children_list[index].attempt) {
                     if (el.find(".xblock--drag-and-drop").length) {
                         setTimeout(function () {
@@ -652,10 +702,10 @@ var assessmentPlayer = {
                         }
                     }
                 }
-    
+
             })
         }
-        
+
 
         // var problemTypes = [];
         // $("[id*='problem-title']").each(function () {
@@ -688,7 +738,7 @@ var assessmentPlayer = {
         var that = this;
         $('body').on("courseware:open courseware:close", function () {
             console.log("caught event");
-            
+
             that.updateSlickDotsWidth();
         });
     },
@@ -699,7 +749,7 @@ var assessmentPlayer = {
         if ($(window).outerWidth() >= 768) {
             // add scrollbar if not there
             this.progressScrollbar = slickDotsEl.overlayScrollbars({});
-            
+
         } else {
             // remove scrollbar if there
             slickDotsEl.overlayScrollbars({}).overlayScrollbars().destroy();
@@ -707,7 +757,7 @@ var assessmentPlayer = {
     },
 
     addTimer: function () {
-        
+
         var timerEl = '<div class="ap-timer"><span class="ap-timer-minutes">0</span><span>:</span><span class="ap-timer-seconds">0</span></div>';
 
         $(".assessment-block .slick-slider").append(timerEl);
@@ -718,7 +768,7 @@ var assessmentPlayer = {
         // Divide by 1000 to convert time from millisec to sec
 
         var endTime = Date.parse(new Date(time)) / 1000;
-        var currTime = Date.parse(new Date() ) / 1000;
+        var currTime = Date.parse(new Date()) / 1000;
         var leftTime = endTime - currTime;
 
         if (leftTime <= 0) {
@@ -760,9 +810,9 @@ var assessmentPlayer = {
         if (!time_elapsed) {
             var intervalId = setInterval(function () {
                 var remainTime = that.updateCountDown(time);
-                           
+
                 if (remainTime.minutes == 0 && remainTime.seconds == 0 && !time_elapsed) {
-                    
+
                     that.updateStatistics(true);
                     clearInterval(intervalId);
                     that.navigateToSlide(that.playerCount.totalCount);
@@ -772,7 +822,7 @@ var assessmentPlayer = {
         } else {
             this.disableAllSubmitBtn();
         }
-        
+
     },
 
     navigateToSlide: function (slideNum) {
@@ -814,38 +864,37 @@ var assessmentPlayer = {
     },
 
     hideCourseNav: function () {
-       if ($(".assessment-block.slider").hasClass("ecg_competition")) {
-       if ($("#action-preview-select").val() == "staff")
-        { 
-            console.log("test")
-            $("#courseware-index").addClass("hide");
-            $(".btn-side-list-courseware").addClass("hide");
-            var tablist=$(".tabs") ;
-            console.log("try");
-            tablist.each(function() { 
-                lilist=$(this).children().addClass("hide"); 
-                console.log(lilist);
-                lilist.last().removeClass("hide");
-            });
+        if ($(".assessment-block.slider").hasClass("ecg_competition")) {
+            if ($("#action-preview-select").val() == "staff") {
+                console.log("test")
+                $("#courseware-index").addClass("hide");
+                $(".btn-side-list-courseware").addClass("hide");
+                var tablist = $(".tabs");
+                console.log("try");
+                tablist.each(function () {
+                    lilist = $(this).children().addClass("hide");
+                    console.log(lilist);
+                    lilist.last().removeClass("hide");
+                });
+            }
+            else {
+                $(".courseware.wrapper-course-material").addClass("hide");
+                $("#courseware-index").addClass("hide");
+                $(".btn-side-list-courseware").addClass("hide");
+            }
         }
-        else
-        {
-            $(".courseware.wrapper-course-material").addClass("hide");
-            $("#courseware-index").addClass("hide");
-            $(".btn-side-list-courseware").addClass("hide");
-        }
-    }},
-    
+    },
+
     // Start Hariom : ET-183_TOC_changes
 
-    started : "fa-check-partially-circle",
-    complete : "fa-check-circle",
+    started: "fa-check-partially-circle",
+    complete: "fa-check-circle",
 
-    get_subsection_progress: function(current_unit) {
+    get_subsection_progress: function (current_unit) {
         var that = this;
         var status;
         var current_unit_siblings = current_unit.siblings();
-        if (current_unit_siblings.length != 0){
+        if (current_unit_siblings.length != 0) {
             current_unit_siblings.each(function () {
                 var this_icon = $(this).children("a").children("button.last-level-title").children("span.complete-checkmark");
                 if (this_icon.hasClass(that.complete)) {
@@ -862,11 +911,11 @@ var assessmentPlayer = {
         return status;
     },
 
-    get_section_progress: function(current_subsection){
+    get_section_progress: function (current_subsection) {
         var that = this;
         var status;
         var current_subsection_siblings = current_subsection.siblings();
-        if (current_subsection_siblings.length != 0){
+        if (current_subsection_siblings.length != 0) {
             current_subsection_siblings.each(function () {
                 var this_icon = $(this).children("button.subsection-text.accordion-trigger").children("span.complete-checkmark");
                 if (this_icon.hasClass(that.complete)) {
@@ -905,13 +954,13 @@ var assessmentPlayer = {
         active_section = $("li.section.current");
         active_section_icon = active_section.find("button.section-name.accordion-trigger span.complete-checkmark");
 
-        if (active_unit_id == toc_progress['block_id']){
+        if (active_unit_id == toc_progress['block_id']) {
             // get progress for unit, subsection, section
-            if (toc_progress["status"] == "Started"){
+            if (toc_progress["status"] == "Started") {
                 unit_progress = that.started
                 subsection_progress = that.started
                 section_progress = that.started
-            } else if (toc_progress["status"] == "Complete"){
+            } else if (toc_progress["status"] == "Complete") {
                 unit_progress = that.complete
                 // If all the sibling units are complete -> update subsection = complete else started
                 subsection_progress = that.get_subsection_progress(active_unit)
@@ -920,24 +969,32 @@ var assessmentPlayer = {
             }
             // update progress icon
             // console.log("unit: ", unit_progress)
-            if (unit_progress != ''){
+            if (unit_progress != '') {
                 active_unit_icon.addClass(unit_progress)
             }
             // console.log("subsect: ", subsection_progress)
-            if (subsection_progress != ''){
+            if (subsection_progress != '') {
                 active_subsection_icon.addClass(subsection_progress)
             }
             // console.log("sect: ", section_progress)
-            if (section_progress != ''){
+            if (section_progress != '') {
                 active_section_icon.addClass(section_progress)
             }
         };
 
     },
     scrollToTop: function () {
+        $("body").css({
+            overflow: "hidden"
+        });
         $([document.documentElement, document.body]).animate({
             scrollTop: $(".xblock-student_view-assessmentxblock").offset().top
         }, 100);
+        setTimeout(function() {
+            $("body").css({
+                overflow: "inherit"
+            }); 
+        }, 300);
     },
 
     addImageZoomClass: function (soruce) {
@@ -955,10 +1012,10 @@ var assessmentPlayer = {
     },
 
     toggleImageZoomClass: function () {
-        
+
         var currWidth = window.innerWidth;
         if (currWidth >= 768) {
-            if(!this.imgZoomClickRegistered) {
+            if (!this.imgZoomClickRegistered) {
                 $(".problems-wrapper").on("click", ".question-description img", function () {
                     $(this).toggleClass("img-zoom");
                 });
@@ -968,7 +1025,7 @@ var assessmentPlayer = {
             $(".problems-wrapper").off("click", ".question-description img");
             this.imgZoomClickRegistered = false;
         }
-        
+
     },
 
     exportToCSV: function (filename, rows) {

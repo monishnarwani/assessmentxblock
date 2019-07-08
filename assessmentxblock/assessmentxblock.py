@@ -38,7 +38,9 @@ from django.conf import settings
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from student.models import CourseEnrollment
 from courseware.models import StudentModule
-
+from access_course.models import userdetails
+from .reports import prepare_report
+ 
 LOG = logging.getLogger(__name__)
 RESOURCE_LOADER = ResourceLoader(__name__)
 _ = lambda text: text
@@ -249,11 +251,18 @@ class AssesmentXBlock(XBlock,PublishEventMixin):
         scope=Scope.user_state
     )
 
+    attempt_score_history=List(
+        default=[],
+        scope=Scope.user_state
+    )
     score_report = List(
         default = [],
         scope = Scope.user_state
     )
-
+    attempt_no = Integer(
+        default = 1,
+        scope =Scope.user_state
+    )
 
     def library_list(self,lib_tools,user_perms):
         """
@@ -382,6 +391,21 @@ class AssesmentXBlock(XBlock,PublishEventMixin):
         """
         return LibraryLocator.from_string(self.source_library_id)
 
+    def _get_original_child_blocks(self):
+        """
+        Generator returning XBlock instances of the children selected for the
+        current user.
+        """
+        block_list = [(c.block_type, c.block_id) for c in self.children]
+        #if not first attempt randomize the view of children
+        
+        # selected = set(block_list)
+        for block in block_list:
+            for block_type, block_id in set([block]):
+                yield self.runtime.get_block(self.location.course_key.make_usage_key(block_type, block_id))
+                pass
+
+    
     def _get_selected_child_blocks(self):
         """
         Generator returning XBlock instances of the children selected for the
@@ -451,7 +475,8 @@ class AssesmentXBlock(XBlock,PublishEventMixin):
             ctr=0
             for indx in  range(0,count):
                original_score_list[self.order_list[indx]]=score_list[indx]
-            print("original score_list" , original_score_list)
+            print("original score_list===========================================" , original_score_list)
+            
             self.current_attempt_score.append(original_score_list)
 
     def set_start_end_time(self, current_time):
@@ -473,6 +498,26 @@ class AssesmentXBlock(XBlock,PublishEventMixin):
             return True
         return False
 
+    def save_reattempt_problem_score(self):
+        
+        score_list=[]
+        for child in self._get_original_child_blocks():
+            is_correct = -1
+            if child.is_attempted():
+                if child.is_correct():
+                    is_correct = 1
+                else:
+                    is_correct = 0
+
+            score_list.append({
+                "is_correct": is_correct,
+                "ans_submitted": child.get_state_for_lcp()['student_answers'].values()
+            })
+        self.score_report = score_list
+        print(self.score_report)
+
+    
+    
     def save_problem_score(self):
         
         score_list=[]
@@ -489,6 +534,7 @@ class AssesmentXBlock(XBlock,PublishEventMixin):
                 "ans_submitted": child.get_state_for_lcp()['student_answers'].values()
             })
         self.score_report = score_list
+        print(self.score_report)
 
     @XBlock.json_handler
     def reset_attempt(self, reset_param, suffix=''):
@@ -528,6 +574,17 @@ class AssesmentXBlock(XBlock,PublishEventMixin):
 
         if not error_flag:
             self.save_score()
+            if self.assessment_type == self.UNIT_TYPE["CME_TEST"]:
+                original_score_report=[{}   ]*len(self.order_list)
+                ctr=0
+                '''if self.first_attempt == 0:
+                    for i in self.order_list:
+                        original_score_report[i] =self.score_report[ctr]
+                        ctr= ctr+1
+                    self.attempt_score_history.append(original_score_report)
+                else:'''
+                self.attempt_score_history.append(self.score_report)
+
             loc = text_type(self.location)
             crsid = text_type(self.course_id)
             if user_email:
@@ -554,7 +611,7 @@ class AssesmentXBlock(XBlock,PublishEventMixin):
 
                 self.first_attempt = 0
                 self.randomize_children()
-              
+                self.attempt_no =self.attempt_no+1
                 return {
                     'result': 'success',
                     'message': ''
@@ -617,6 +674,14 @@ class AssesmentXBlock(XBlock,PublishEventMixin):
                 self.save_score()
                 self.save_problem_score()
 
+            if self.assessment_type == self.UNIT_TYPE["CME_TEST"] :
+                #self.save_score()
+                if (self.attempt_no == 1):
+                    self.save_problem_score()
+                else:
+                    print("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&")        
+                    self.save_reattempt_problem_score()
+                print("after save problem score")
             prob_id = None
             if updatestats.has_key('problem_state_id') and updatestats.get('problem_state_id') != None:
                 prob_id = updatestats['problem_state_id'][10:]
@@ -1013,18 +1078,24 @@ class AssesmentXBlock(XBlock,PublishEventMixin):
                         else:
                             error_flag = True
                             err_message['definitively_repeat'] += " The definitively Repeat value has to be less than continue to next value."
-
-                if len(str(submissions['module_link']).strip()) > 0:
-                    regex = re.compile(
-                        r'^(?:http|ftp)s?://' # http:// or https://
-                        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' #domain...
-                        r'localhost|' #localhost...
-                        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})' # ...or ip
-                        r'(?::\d+)?' # optional port
-                        r'(?:/.|[/.]\S+)$', re.IGNORECASE)
-                    if not re.match(regex, submissions['module_link']):
-                        error_flag = True
-                        err_message['module_link'] = "Module link is not valid."    
+                print(settings.LMS_ROOT_URL)
+                value=submissions['module_link'].strip()
+                if len(value) > 0:
+                    if value[0] == '/':
+                        modulelink=settings.LMS_ROOT_URL+str(submissions['module_link'].strip())
+                    else:
+                        modulelink=settings.LMS_ROOT_URL+'/'+str(submissions['module_link'].strip())
+                    if len(str(submissions['module_link']).strip()) > 0:
+                        regex = re.compile(
+                            r'^(?:http|ftp)s?://' # http:// or https://
+                            r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' #domain...
+                            r'localhost|' #localhost...
+                            r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})' # ...or ip
+                            r'(?::\d+)?' # optional port
+                            r'(?:/.|[/.]\S+)$', re.IGNORECASE)
+                        if not re.match(regex,modulelink):
+                            error_flag = True
+                            err_message['module_link'] = "Module link is not valid."    
 
         if not error_flag:
             self.display_name = unicode(submissions['display_name'])
@@ -1092,6 +1163,16 @@ class AssesmentXBlock(XBlock,PublishEventMixin):
         low=self.definitively_repeat
         high=self.continue_with_next
         t=None
+        modulelink=self.module_link
+        print(settings.LMS_ROOT_URL)
+        value=self.module_link
+        if len(value) > 0:
+            if value[0] == '/':
+                modulelink=settings.LMS_ROOT_URL+value
+            else:
+                modulelink=settings.LMS_ROOT_URL+'/'+value
+                        
+        
 
         fragment.add_content(RESOURCE_LOADER.render_django_template(
             'static/html/problem-lib.html',
@@ -1149,15 +1230,18 @@ class AssesmentXBlock(XBlock,PublishEventMixin):
         fragment.add_content(RESOURCE_LOADER.render_django_template(
             ASSESSMENT_TEMPLATE,
             context={"self": self, "contents": contents,"children_list" :children_list, "total":total,"total_correct":total_correct,
-                        'low':low, 'high':high, 'summary':status, 'correct_percent':correct_percent, 'total_incorrect': total_incorrect, "test": self.order_list, "has_staff_role": self.has_staff_role()} 
+                        'low':low, 'high':high, 'summary':status, 'correct_percent':correct_percent, 'total_incorrect': total_incorrect, "test": self.order_list, "has_staff_role": self.has_staff_role(),'modulelink':modulelink} 
                         if self.assessment_type != self.UNIT_TYPE["ECG_COMPETITION"] else { "self": self, "contents": contents,
-                        'children_list': children_list, 'total': total },
+                        'children_list': children_list, 'total': total ,'modulelink':modulelink},
             i18n_service=self.runtime.service(self, 'i18n'),
         ))
         fragment.add_javascript(RESOURCE_LOADER.load_unicode('static/js/src/vendor/jquery-ui/jquery-ui.min.js'))
         fragment.add_javascript(RESOURCE_LOADER.load_unicode('static/js/src/slick.min.js'))
         fragment.add_javascript(RESOURCE_LOADER.load_unicode('static/js/src/jquery.overlayScrollbars.js'))
         fragment.add_javascript(RESOURCE_LOADER.load_unicode('static/js/src/assessmentxblock.js'))
+        fragment.add_javascript_url(
+            self.runtime.local_resource_url(self, 'public/js/ecg_toolbar.js')
+        )
         fragment.add_css(self.resource_string("static/css/assessmentxblock_edit.css"))
 
         fragment.initialize_js('AssesmentXBlock')
@@ -1203,7 +1287,23 @@ class AssesmentXBlock(XBlock,PublishEventMixin):
 
         if not self.has_staff_role():
             return {}
-        
+        if (self.assessment_type == self.UNIT_TYPE["CME_TEST"]):
+            print("inside if....")
+            markslist = StudentModule.objects.filter(course_id=self.course_id,module_state_key=self.location)
+            total_ques=len(self.children)
+            
+            rowmarks=[]
+            for marks in markslist:
+                details = userdetails.objects.filter(student=marks.student)
+                if details:
+                    unique_id=details[0].external_ref_id
+                else:
+                    unique_id =str(marks.student.id)
+                rowmarks.append((unique_id,json.loads(marks.state)))
+            print ("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+            print(rowmarks)
+            print("######################################################################")
+            return prepare_report(rowmarks, self.assessment_type, total_ques, text_type(self.course_id))
         course_id = text_type(self.course_id)
         course_key = CourseKey.from_string(course_id)
         
