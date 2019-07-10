@@ -40,6 +40,9 @@ $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jquery.panzoom/3.2.3/jquery.
         */
         var minZoomScale = 0.5;
         var currentZoomScale = 1;
+        // mousewheel variables
+        var zoomIncrement = minZoomScale;
+        var zoomAnimate = false;
 
         /*
             global working variables
@@ -78,7 +81,9 @@ $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jquery.panzoom/3.2.3/jquery.
         */
 
         // below value has been adjusted as per user friendly UI design
-        var stroke_width = 3.5, 
+        var ecg_img_width = '691px',
+            ecg_img_height = '400px',
+            stroke_width = 3.5, 
             dummy_stroke_width = 0.7, 
             stroke_color = '#4A9DD8',
             dummy_stroke_color = '#8DCDEC',
@@ -158,12 +163,18 @@ $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jquery.panzoom/3.2.3/jquery.
 
         // add panzoom svg elements in panzoom svg
         var panzoom_svg_el = marker_def + draggable_grp;
-        var panzoom_svg_style = 'style="background-image: url(panzoom_svg_background); background-repeat: no-repeat; background-size: contain; position: relative; left: 0; top: 0; width: 100%; height: auto;"';
-        var panzoom_svg = '<svg id="container" width="1232" height="728" ' + panzoom_svg_style + ' >' + panzoom_svg_el + '</svg>';
+        var panzoom_svg_style = 'style="background-image: url(panzoom_svg_background); background-repeat: no-repeat; background-size: contain; position: relative; left: 0; top: 0; width:' + ecg_img_width + '; height:' + ecg_img_height + '; "';
+        var panzoom_svg = '<svg id="container" ' + panzoom_svg_style + ' >' + panzoom_svg_el + '</svg>';
+
+        // add pannable background 
+        var pannable_div_el = panzoom_svg;
+        var pannable_div_style = 'style="width:100%; height:100%;"';
+        var pannable_div = '<div class="pannable" ' + pannable_div_style + '>' + pannable_div_el + '</div>';
 
         // add main container elements 
-        var svg_container_div_el = panzoom_svg;
-        var svg_container_div = '<div class="svg-container" style="width:100%; height:auto;">' + svg_container_div_el + '</div>';
+        var svg_container_div_el = pannable_div;
+        var svg_container_div_style = 'style="width:100%; height:auto;"';
+        var svg_container_div = '<div class="svg-container focal" ' + svg_container_div_style + '>' + svg_container_div_el + '</div>';
 
         var close_fullscreen = '<div class="close_fullscreen hide"><span class="icon_close"></span></div>';
 
@@ -205,13 +216,13 @@ $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jquery.panzoom/3.2.3/jquery.
         }, 800);
 
         /*
-            handle slide change event 
+            handle slide change event or problem submit
             - creates toolbar if necessary
         */
-        $("#main").on("AssessmentXBlock:slideChanged", function () {
+        $("#main").on("AssessmentXBlock:slideChanged AssessmentXBlock:problemSubmited", function () {
             slide_changed = true;
             if (!page_loaded) {
-                console.log("calling on slide change");
+                console.log("calling on slide change / problem submit");
                 init_ecgtoolbar();
                 page_loaded = false;
             }
@@ -288,6 +299,8 @@ $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jquery.panzoom/3.2.3/jquery.
                 var img_src = img.attr("src");
                 time_1_second_in_pixels = img.attr('data-time_1_second_in_pixels');
                 current_1_volt_in_pixels = img.attr('data-current_1_volt_in_pixels');
+                // console.log(img.width(), img.height());
+                // calculate width and set in css of svg container keeping height fixed to 400px
                 // remove measure_img tag and add hide to indicate that image ruler container has been generated
                 img.toggleClass("hide "+toolbar_class);
 
@@ -305,6 +318,22 @@ $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jquery.panzoom/3.2.3/jquery.
             Enable pan and zoom feature for created svg and toolbar container
         */
         function enable_panzoom(container) {
+            container.parents('.pannable').panzoom({
+                $set: container,
+                disableZoom: true,
+                onPan: function (e, panzoom, x, y) {
+                    // console.log("pannable panzoompan");
+                    $(this).css({
+                        cursor: pointer_panning_cursor,
+                        cursor: pointer_panning_ie_cursor,
+                    });
+                },
+                onEnd: function (e, panzoom, matrix, changed) {
+                    $(this).css({
+                        cursor: default_cursor,
+                    });
+                },
+            });
             container.panzoom({
                 minScale: minZoomScale,
                 $zoomIn: $(".icon_zoom_in"),
@@ -319,11 +348,14 @@ $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jquery.panzoom/3.2.3/jquery.
         */
         function enable_mousewheel(container) {
             $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jquery-mousewheel/3.1.13/jquery.mousewheel.min.js', function () {
-                container.on('mousewheel', function (event, delta) {
+                container.parents('.focal').on('mousewheel.focal', function (event) {
                     event.preventDefault();
-                    var zoomout = delta < 0;
-                    $(this).panzoom("zoom", zoomout,{
-                        focal: event
+                    var delta = event.delta || event.originalEvent.wheelDelta;
+                    var zoomout = delta ? delta < 0 : event.originalEvent.deltaY > 0;
+                    container.panzoom("zoom", zoomout,{
+                        focal: event,
+                        animate: zoomAnimate,
+                        increment: zoomIncrement,
                     });
                 });
             });
@@ -376,9 +408,25 @@ $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jquery.panzoom/3.2.3/jquery.
             if (pdesc.length != 0) {
                 fullscreen_icon.addClass('active');
                 $(document.body).append(that);
+                svg_container.css({
+                    width: function (index, currentValue) {
+                        return that.height() * (previousWidthSVG/previousHeightSVG);
+                    },
+                    height: function (index, currentValue) {
+                        return that.height();
+                    }
+                });
             } else {
                 fullscreen_icon.removeClass('active');
                 active_prob.append(that);
+                svg_container.css({
+                    width: function (index, currentValue) {
+                        return ecg_img_width;
+                    },
+                    height: function (index, currentValue) {
+                        return ecg_img_height;
+                    }
+                });
             }
 
             var currentWidthSVG = svg_container.width(),
@@ -387,8 +435,8 @@ $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jquery.panzoom/3.2.3/jquery.
                 heightRatioSVG = currentHeightSVG/previousHeightSVG;
 
             // rescale measurement elements while switching between full-screen and normal mode
-            time_1_second_in_pixels /= widthRatioSVG;
-            current_1_volt_in_pixels /= heightRatioSVG;
+            time_1_second_in_pixels *= widthRatioSVG;
+            current_1_volt_in_pixels *= heightRatioSVG;
             if (PreviousPos.length!=0 && CurrentPos.length != 0) {
                 PreviousPos[0] *= widthRatioSVG;
                 PreviousPos[1] *= heightRatioSVG;
@@ -432,8 +480,9 @@ $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jquery.panzoom/3.2.3/jquery.
                 draggable_handles.each(function() {
                     var start_clientX, start_clientY, startPos, NewPos;
                     $(this)[0].addEventListener('touchstart', function (e) {
-                        container.panzoom("disable");
-                        container.parents(".svg-container").css({ "overflow": "hidden", "position": "relative" });
+                        container.panzoom('disable');
+                        container.parents('.pannable').panzoom('disable');
+                        container.parents('.svg-container').css({ "overflow": "hidden", "position": "relative" });
                         start_clientX = e.touches[0].clientX/currentZoomScale;
                         start_clientY = e.touches[0].clientY/currentZoomScale;
                         if ($(this).hasClass('left_handle')) {
@@ -454,7 +503,8 @@ $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jquery.panzoom/3.2.3/jquery.
                         draw_lines(container, PreviousPos, CurrentPos);
                     });
                     $(this)[0].addEventListener('touchend', function (e) {
-                        container.panzoom("enable");
+                        container.panzoom('enable');
+                        container.parents('.pannable').panzoom('enable');
                     });
                 });
             }
@@ -471,10 +521,12 @@ $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jquery.panzoom/3.2.3/jquery.
 
             $(dragItem).mouseenter(function (e) {
                 svg_container.panzoom('disable');
+                svg_container.parents('.pannable').panzoom('disable');
                 svg_container.parents(".svg-container").css({ "overflow": "hidden", "position": "relative" });
             });
             $(dragItem).mouseleave(function (e) {
                 svg_container.panzoom('enable');
+                svg_container.parents('.pannable').panzoom('enable');
                 update_cursor_icon(svg_container);
             });
 
@@ -488,8 +540,9 @@ $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jquery.panzoom/3.2.3/jquery.
 
             function dragStart(e) {
                 if (e.type === "touchstart") {
-                    svg_container.panzoom("disable");
-                    svg_container.parents(".svg-container").css({ "overflow": "hidden", "position": "relative" });
+                    svg_container.panzoom('disable');
+                    svg_container.parents('.pannable').panzoom('disable');
+                    svg_container.parents('.svg-container').css({ "overflow": "hidden", "position": "relative" });
                     initialX = e.touches[0].clientX/currentZoomScale - xOffset;
                     initialY = e.touches[0].clientY/currentZoomScale - yOffset;
                 } else {
@@ -507,7 +560,8 @@ $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jquery.panzoom/3.2.3/jquery.
 
             function dragEnd(e) {
                 if (e.type === "touchend") {
-                    svg_container.panzoom("enable");
+                    svg_container.panzoom('enable');
+                    svg_container.parents('.pannable').panzoom('enable');
                     // update Previous and Current Position for mobile view as handles are also moved
                     PreviousPos[0] += currentX;
                     PreviousPos[1] += currentY;
@@ -936,51 +990,60 @@ $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jquery.panzoom/3.2.3/jquery.
                 }
 
                 // draw both horizontal and vertical lines if not within buffer
-                if ((!horizontal_line && !vertical_line) && allow_horizontal && allow_vertical) {
+                if (!horizontal_line && !vertical_line) {
                     // console.log("diagonal");
 
-                    setHorizontalPathData(time_path, start_x, end_x, start_y, end_y, corner_edge);
-                    setVerticalPathData(voltage_path, start_x, end_x, start_y, end_y, corner_edge);
-                    setRectAttrFromPath(pathBgEl, time_path, voltage_path);
-
-                    // container.find("polyline.polyline").attr("points", fill_points);
-                    updateTextLabelEl(container, start_x, start_y, end_x, end_y, time_1_second_in_pixels, current_1_volt_in_pixels, corner_edge);
-
-                    if (draw_dummy_lines || mobile_view) {
-                        var x_adjustment = roundTo(dummy_stroke_width/2,1), y_adjustment = roundTo(dummy_stroke_width/2,1);
-                        var start_pos = '',
-                            mid_pos = '',
-                            end_pos = '';
-                        // adjusting polyline coordinate so as to avoid click on polyline itself rather than click on ECG Image
-                        // note that start_pos is everytime from y axis end
-                        if (end_x>start_x && end_y<start_y) {
-                            // first quadrant
-                            start_pos = (start_x - x_adjustment) + ',' + (end_y + y_adjustment);
-                            mid_pos = (end_x - x_adjustment) + ',' + (end_y + y_adjustment);
-                            end_pos = (end_x - x_adjustment) + ',' + (start_y + y_adjustment);
+                    // check if horizontal and vertical both lines are allowed then only draw both
+                    if (allow_horizontal && allow_vertical) {
+                        setHorizontalPathData(time_path, start_x, end_x, start_y, end_y, corner_edge);
+                        setVerticalPathData(voltage_path, start_x, end_x, start_y, end_y, corner_edge);
+                        setRectAttrFromPath(pathBgEl, time_path, voltage_path);
+                        updateTextLabelEl(container, start_x, start_y, end_x, end_y, time_1_second_in_pixels, current_1_volt_in_pixels, corner_edge);
+                        if (draw_dummy_lines || mobile_view) {
+                            var x_adjustment = roundTo(dummy_stroke_width/2,1), y_adjustment = roundTo(dummy_stroke_width/2,1);
+                            var start_pos = '',
+                                mid_pos = '',
+                                end_pos = '';
+                            // adjusting polyline coordinate so as to avoid click on polyline itself rather than click on ECG Image
+                            // note that start_pos is everytime from y axis end
+                            if (end_x>start_x && end_y<start_y) {
+                                // first quadrant
+                                start_pos = (start_x - x_adjustment) + ',' + (end_y + y_adjustment);
+                                mid_pos = (end_x - x_adjustment) + ',' + (end_y + y_adjustment);
+                                end_pos = (end_x - x_adjustment) + ',' + (start_y + y_adjustment);
+                            }
+                            if (end_x<start_x && end_y<start_y) {
+                                // second quadrant
+                                start_pos = (start_x + x_adjustment) + ',' + (end_y + y_adjustment);
+                                mid_pos = (end_x + x_adjustment) + ',' + (end_y + y_adjustment);
+                                end_pos = (end_x + x_adjustment) + ',' + (start_y + y_adjustment);
+                            }
+                            if (end_x<start_x && end_y>start_y) {
+                                // third quadrant
+                                start_pos = (start_x + x_adjustment) + ',' + (end_y - y_adjustment);
+                                mid_pos = (end_x + x_adjustment) + ',' + (end_y - y_adjustment);
+                                end_pos = (end_x + x_adjustment) + ',' + (start_y - y_adjustment);
+                            }
+                            if (end_x>start_x && end_y>start_y) {
+                                // forth quadrant
+                                start_pos = (start_x - x_adjustment) + ',' + (end_y - y_adjustment);
+                                mid_pos = (end_x - x_adjustment) + ',' + (end_y - y_adjustment);
+                                end_pos = (end_x - x_adjustment) + ',' + (start_y - y_adjustment);
+                            }
+                            fill_points = start_pos + ' ' + mid_pos + ' ' + end_pos;
+                            container.find("polyline.dummy_polyline").attr("points", fill_points);
                         }
-                        if (end_x<start_x && end_y<start_y) {
-                            // second quadrant
-                            start_pos = (start_x + x_adjustment) + ',' + (end_y + y_adjustment);
-                            mid_pos = (end_x + x_adjustment) + ',' + (end_y + y_adjustment);
-                            end_pos = (end_x + x_adjustment) + ',' + (start_y + y_adjustment);
-                        }
-                        if (end_x<start_x && end_y>start_y) {
-                            // third quadrant
-                            start_pos = (start_x + x_adjustment) + ',' + (end_y - y_adjustment);
-                            mid_pos = (end_x + x_adjustment) + ',' + (end_y - y_adjustment);
-                            end_pos = (end_x + x_adjustment) + ',' + (start_y - y_adjustment);
-                        }
-                        if (end_x>start_x && end_y>start_y) {
-                            // forth quadrant
-                            start_pos = (start_x - x_adjustment) + ',' + (end_y - y_adjustment);
-                            mid_pos = (end_x - x_adjustment) + ',' + (end_y - y_adjustment);
-                            end_pos = (end_x - x_adjustment) + ',' + (start_y - y_adjustment);
-                        }
-                        fill_points = start_pos + ' ' + mid_pos + ' ' + end_pos;
-                        container.find("polyline.dummy_polyline").attr("points", fill_points);
+                    } else if (allow_horizontal) {
+                        // if only horizontal line is allowed
+                        setHorizontalPathData(time_path, start_x, end_x, start_y, end_y, corner_edge);
+                        setRectAttrFromPath(pathBgEl, time_path, '');
+                        updateTextLabelEl(container, start_x, start_y, end_x, end_y, time_1_second_in_pixels, 0, corner_edge);
+                    } else if (allow_vertical) {
+                        // if only vertical line is allowed
+                        setVerticalPathData(voltage_path, start_x, end_x, start_y, end_y, corner_edge);
+                        setRectAttrFromPath(pathBgEl, '', voltage_path);
+                        updateTextLabelEl(container, start_x, start_y, end_x, end_y, 0, current_1_volt_in_pixels, corner_edge);
                     }
-
                 }
 
                 // show right handle
@@ -1010,7 +1073,7 @@ $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jquery.panzoom/3.2.3/jquery.
                 var offset = stroke_width;
                 setHorizontalPathData(time_path, CurrentPos[0], CurrentPos[0]+offset, CurrentPos[1], CurrentPos[1], corner_edge);
                 setRectAttrFromPath(pathBgEl, time_path, '');
-                updateTextLabelEl(container, CurrentPos[0], CurrentPos[1], CurrentPos[0]+offset, CurrentPos[1], 'default_value', 0, corner_edge);
+                updateTextLabelEl(container, CurrentPos[0], CurrentPos[1], CurrentPos[0]+offset, CurrentPos[1], 999999999, 0, corner_edge);
 
                 // show left handle
                 if (mobile_view) {
@@ -1150,19 +1213,13 @@ $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jquery.panzoom/3.2.3/jquery.
             // divide voltage by 49 and then multiple result with 0.5 to get voltage in mV
 
             if (time_scale != 0){
-
-                var temp;
-                if (time_scale == 'default_value') {
-                    temp = get_time_volt(start_x, end_x, 0);
-                } else {
-                    temp = get_time_volt(start_x, end_x, time_scale);
-                }
+                var temp = get_time_volt(start_x, end_x, time_scale);
 
                 x = start_x;
                 y = start_y + offset_pos;
                 var rect_width = temp[1];
                 var rect_height = bg_height;
-                textValue = temp[0]+" ms";
+                textValue = temp[0]+" s";
                 // console.log(textValue, "ms");
 
                 // below if is to flip the position of text horizontally
@@ -1188,7 +1245,7 @@ $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jquery.panzoom/3.2.3/jquery.
                 y = end_y;
                 var rect_width = bg_width;
                 var rect_height = temp[1];
-                textValue = temp[0] + " mv";
+                textValue = temp[0] + " v";
                 // console.log(textValue, "mV");
 
                 // below if is to flip the position of text vertically
@@ -1214,10 +1271,10 @@ $.getScript('https://cdnjs.cloudflare.com/ajax/libs/jquery.panzoom/3.2.3/jquery.
             scale = parseFloat(scale);
             var time_volt = 0, diff = 0;
             if (end > start) {
-                time_volt = (end - start) * scale;
+                time_volt = (end - start) / scale;
                 diff = end - start;
             } else {
-                time_volt = (start - end) * scale;
+                time_volt = (start - end) / scale;
                 diff = start - end;
             }
             return [
